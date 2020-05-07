@@ -1,0 +1,59 @@
+name: Publish Static Web App
+
+on: repository_dispatch
+
+jobs:
+  merge_pr:
+    name: Merge PR
+    if: github.event.action == 'merge-pr'
+
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+    - name: Merge PR
+      uses: justinyoo/github-pr-merge-action@v0.8.0
+      with:
+        authToken: ${{ secrets.GITHUB_TOKEN }}
+        owner: ${{ github.event.client_payload.owner }}
+        repository:  ${{ github.event.client_payload.repository }}
+        issueId: '${{ github.event.client_payload.issueId }}'
+        mergeMethod: Squash
+        commitTitle: ''
+        commitDescription: ''
+        deleteBranch: 'true'
+    - name: Send dispatch event for publish
+      shell: bash
+      run: |
+        curl -X POST 'https://${{ secrets.AZURE_FUNCTIONS_NAME }}.azurewebsites.net/api/events/publish' -d '{ "owner": "devkimchi", "repository": "live0507" }' -H "x-functions-key: ${{ secrets.AZURE_FUNCTIONS_KEY }}" -H "Content-Type: application/json"
+
+  build_and_publish:
+    name: Build and Publish
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Netlify CLI
+        shell: bash
+        run: |
+          sudo npm install -g netlify-cli
+
+      - name: Install npm packages
+        shell: bash
+        run: |
+          npm install
+
+      - name: Build app
+        shell: bash
+        run: |
+          npm run build
+      
+      - name: Publish app
+        shell: bash
+        run: |
+          netlify deploy --dir=public -p -s ${{ secrets.NETLIFY_SITE_ID }} -a ${{ secrets.NETLIFY_AUTH_TOKEN }}
