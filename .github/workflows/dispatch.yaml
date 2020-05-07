@@ -31,6 +31,7 @@ jobs:
 
   build_and_publish:
     name: Build and Publish
+    if: github.event.action == 'publish'
 
     runs-on: ubuntu-latest
 
